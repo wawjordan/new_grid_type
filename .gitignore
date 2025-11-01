@@ -1,0 +1,6 @@
+*.out
+*.out.*
+*.mod
+*.log
+*.gcda
+*.gcno
