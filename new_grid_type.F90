@@ -1,9 +1,11 @@
 module set_precision
-  use iso_fortran_env, only : real64, int32, int64
+  use iso_fortran_env, only : real64, int8, int16, int32, int64
   implicit none
   private
-  public :: dp, i4, i8
+  public :: dp, i1, i2, i4, i8
   integer, parameter :: dp  = real64
+  integer, parameter :: i1  = int8
+  integer, parameter :: i2  = int16
   integer, parameter :: i4  = int32
   integer, parameter :: i8  = int64
 end module set_precision
@@ -297,6 +299,8 @@ module index_conversion
   private
   public :: global2local, local2global
 
+  public :: get_hypercube_face_codes
+
   interface global2local
     module procedure global2local_i8_i8
     module procedure global2local_i8_i8_bnd
@@ -389,6 +393,25 @@ contains
     integer(i8), dimension(size(lo)) :: iSub
     iSub = global2local_i8_i8_bnd(int(iG,i8),int(lo,i8),int(hi,i8))
   end function global2local_i4_i8_bnd
+
+  pure function get_hypercube_face_codes(n_dim,dir,hi) result(v)
+    use set_precision, only : i1
+    integer, intent(in) :: n_dim, dir
+    logical, intent(in) :: hi
+    logical, dimension(2**(n_dim-1),n_dim) :: v
+    integer(i1) :: n
+    integer :: i, cnt
+    logical, dimension(n_dim-1) :: bits
+    v(:,dir) = hi
+    cnt = 0
+    do n = 0,int(2**(n_dim-1)-1,i1)
+      cnt = cnt + 1
+      bits = btest(n,[(i,i=1,n_dim-1)])
+      ! bits = btest(n,[(i,i=n_dim-2,0,-1)])
+      v(cnt,1:dir-1)     = bits(1:dir-1)
+      v(cnt,dir+1:n_dim) = bits(dir:n_dim-1)
+    end do
+  end function get_hypercube_face_codes
 
 end module index_conversion
 
@@ -630,43 +653,63 @@ contains
 
 end module block_info_type
 
+! program main
+!   use set_precision, only : dp
+!   use set_constants, only : zero, one
+!   use block_info_type, only : block_info_t
+!   use combinatorics, only : unique_rand_ints_1D, rand_int_in_range
+!   implicit none
+
+!   type(block_info_t) :: info
+!   integer :: i, j, n_dim, n_blocks
+!   integer, parameter, dimension(2) :: sz_range = [5,201]
+!   integer, dimension(:),   allocatable :: block_ids
+!   integer, dimension(:,:), allocatable :: block_sizes, block_n_ghosts
+!   n_dim    = 4
+!   n_blocks = 3
+
+!   allocate( block_ids(n_blocks) )
+!   allocate( block_sizes(n_dim,n_blocks ) )
+!   allocate( block_n_ghosts(n_dim,n_blocks ) )
+!   block_n_ghosts = 2
+
+!   block_ids = unique_rand_ints_1D(1,n_blocks,n_blocks)
+!   do i = 1,n_blocks
+
+!     do j = 1,n_dim
+!       block_sizes(j,i) = rand_int_in_range(sz_range(1),sz_range(2))
+!     end do
+!   end do
+
+!   do j = 0,n_dim
+!     do i = 1,n_blocks
+!       info = block_info_t(j,i)
+!       call info%setup(block_ids,block_sizes,block_n_ghosts)
+!       write(*,'("(",I0,",",I0,"): n_bnd=",I0)') j, i, info%n_bnd
+!       call info%destroy()
+!     end do
+!   end do
+
+!   deallocate( block_ids, block_sizes, block_n_ghosts )
+
+! end program main
+
 program main
-  use set_precision, only : dp
-  use set_constants, only : zero, one
-  use block_info_type, only : block_info_t
-  use combinatorics, only : unique_rand_ints_1D, rand_int_in_range
+  use index_conversion, only : get_hypercube_face_codes
   implicit none
+  integer :: i, j, n_dim, dir
+  logical :: hi
+  logical, dimension(:,:), allocatable :: v
+  
+  n_dim = 4
+  dir   = 2
+  hi    = .false.
+  allocate( v(2**(n_dim-1),n_dim ) )
 
-  type(block_info_t) :: info
-  integer :: i, j, n_dim, n_blocks
-  integer, parameter, dimension(2) :: sz_range = [5,201]
-  integer, dimension(:),   allocatable :: block_ids
-  integer, dimension(:,:), allocatable :: block_sizes, block_n_ghosts
-  n_dim    = 4
-  n_blocks = 3
+  v = get_hypercube_face_codes(n_dim,dir,hi)
 
-  allocate( block_ids(n_blocks) )
-  allocate( block_sizes(n_dim,n_blocks ) )
-  allocate( block_n_ghosts(n_dim,n_blocks ) )
-  block_n_ghosts = 2
-
-  block_ids = unique_rand_ints_1D(1,n_blocks,n_blocks)
-  do i = 1,n_blocks
-
-    do j = 1,n_dim
-      block_sizes(j,i) = rand_int_in_range(sz_range(1),sz_range(2))
-    end do
+  do j = 1,2**(n_dim-1)
+    write(*,*) (merge(0,1,v(j,i)),i=1,n_dim)
   end do
-
-  do j = 0,n_dim
-    do i = 1,n_blocks
-      info = block_info_t(j,i)
-      call info%setup(block_ids,block_sizes,block_n_ghosts)
-      write(*,'("(",I0,",",I0,"): n_bnd=",I0)') j, i, info%n_bnd
-      call info%destroy()
-    end do
-  end do
-
-  deallocate( block_ids, block_sizes, block_n_ghosts )
 
 end program main
