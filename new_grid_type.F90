@@ -402,9 +402,19 @@ contains
     integer(i1) :: n
     integer :: i, cnt
     logical, dimension(n_dim-1) :: bits
+    ! character(100) :: fmt
+    ! write(fmt,'(A)') '((SP,I0)'
+    ! write(fmt,'(A,",",A)') trim(fmt), '" | "'
+    ! do i = 1,bit_size(n)
+    !   write(fmt,'(A,",",A)') trim(fmt), '(SI0)," "'
+    ! end do
+    ! write(fmt,'(A,A,A)') trim(fmt), ')'
+
     v(:,dir) = hi
     cnt = 0
-    do n = 0,int(2**(n_dim-1)-1,i1)
+    do n = 0,int(2**(n_dim-1)-1,i1) 
+      ! write(*,trim(fmt)) n, merge(1,0,btest(n,[(i,i=0,bit_size(n)-1)]))
+      ! write(*,trim(fmt)) -n, merge(1,0,btest(-n,[(i,i=0,bit_size(n)-1)]))
       cnt = cnt + 1
       bits = btest(n,[(i,i=1,n_dim-1)])
       ! bits = btest(n,[(i,i=n_dim-2,0,-1)])
@@ -413,6 +423,18 @@ contains
     end do
   end function get_hypercube_face_codes
 
+  ! pure function get_face_vertices(n_dim,face_num,sz) result(idx)
+  !   integer, intent(in) :: n_dim, face_num
+  !   integer, dimension(n_dim) :: sz
+  !   integer, dimension(2**(n_dim-1),n_dim) :: idx
+  !   logical, dimension(2**(n_dim-1),n_dim) :: v
+  !   integer :: dir
+  !   dir = mod(face_num-1,2)
+
+
+  !   v = get_hypercube_face_codes(n_dim,mod(face_num-1,2)+1,hi)
+
+  ! end function get_face_vertices
 end module index_conversion
 
 
@@ -709,7 +731,7 @@ program main
   v = get_hypercube_face_codes(n_dim,dir,hi)
 
   do j = 1,2**(n_dim-1)
-    write(*,*) (merge(0,1,v(j,i)),i=1,n_dim)
+    write(*,*) (merge(1,0,v(j,i)),i=1,n_dim)
   end do
 
 end program main
