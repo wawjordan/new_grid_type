@@ -300,6 +300,7 @@ module index_conversion
   public :: global2local, local2global
 
   public :: get_hypercube_face_codes
+  public :: get_face_vertices
 
   interface global2local
     module procedure global2local_i8_i8
@@ -398,7 +399,7 @@ contains
     use set_precision, only : i1
     integer, intent(in) :: n_dim, dir
     logical, intent(in) :: hi
-    logical, dimension(2**(n_dim-1),n_dim) :: v
+    logical, dimension(n_dim,2**(n_dim-1)) :: v
     integer(i1) :: n
     integer :: i, cnt
     logical, dimension(n_dim-1) :: bits
@@ -410,31 +411,37 @@ contains
     ! end do
     ! write(fmt,'(A,A,A)') trim(fmt), ')'
 
-    v(:,dir) = hi
+    v(dir,:) = hi
     cnt = 0
     do n = 0,int(2**(n_dim-1)-1,i1) 
       ! write(*,trim(fmt)) n, merge(1,0,btest(n,[(i,i=0,bit_size(n)-1)]))
       ! write(*,trim(fmt)) -n, merge(1,0,btest(-n,[(i,i=0,bit_size(n)-1)]))
       cnt = cnt + 1
-      bits = btest(n,[(i,i=1,n_dim-1)])
+      ! bits = btest(n,[(i,i=1,n_dim-1)])
+      bits = btest(n,[(i,i=0,n_dim-2)])
       ! bits = btest(n,[(i,i=n_dim-2,0,-1)])
-      v(cnt,1:dir-1)     = bits(1:dir-1)
-      v(cnt,dir+1:n_dim) = bits(dir:n_dim-1)
+      v(1:dir-1,cnt)     = bits(1:dir-1)
+      v(dir+1:n_dim,cnt) = bits(dir:n_dim-1)
     end do
   end function get_hypercube_face_codes
 
-  ! pure function get_face_vertices(n_dim,face_num,sz) result(idx)
-  !   integer, intent(in) :: n_dim, face_num
-  !   integer, dimension(n_dim) :: sz
-  !   integer, dimension(2**(n_dim-1),n_dim) :: idx
-  !   logical, dimension(2**(n_dim-1),n_dim) :: v
-  !   integer :: dir
-  !   dir = mod(face_num-1,2)
+  pure function get_face_vertices(n_dim,face_num,sz) result(idx)
+    integer,                   intent(in) :: n_dim, face_num
+    integer, dimension(n_dim), intent(in) :: sz
+    integer, dimension(n_dim,2**(n_dim-1)) :: idx
+    logical, dimension(n_dim,2**(n_dim-1)) :: v
+    integer :: dir, i
+    logical :: hi
+    hi  = (face_num > n_dim)
+    dir = face_num - merge(n_dim,0,hi)
+    v = get_hypercube_face_codes(n_dim,dir,hi)
 
+    idx = 1
+    do i = 1,2**(n_dim-1)
+      idx(:,i) = merge(sz,idx(:,i),v(:,i))
+    end do
 
-  !   v = get_hypercube_face_codes(n_dim,mod(face_num-1,2)+1,hi)
-
-  ! end function get_face_vertices
+  end function get_face_vertices
 end module index_conversion
 
 
@@ -716,22 +723,49 @@ end module block_info_type
 
 ! end program main
 
-program main
-  use index_conversion, only : get_hypercube_face_codes
-  implicit none
-  integer :: i, j, n_dim, dir
-  logical :: hi
-  logical, dimension(:,:), allocatable :: v
+! program main
+!   use index_conversion, only : get_hypercube_face_codes
+!   implicit none
+!   integer :: i, j, n_dim, dir
+!   logical :: hi
+!   logical, dimension(:,:), allocatable :: v
   
-  n_dim = 4
-  dir   = 2
-  hi    = .false.
-  allocate( v(2**(n_dim-1),n_dim ) )
+!   n_dim = 4
+!   dir   = 2
+!   hi    = .false.
+!   allocate( v(n_dim,2**(n_dim-1) ) )
 
-  v = get_hypercube_face_codes(n_dim,dir,hi)
+!   v = get_hypercube_face_codes(n_dim,dir,hi)
 
-  do j = 1,2**(n_dim-1)
-    write(*,*) (merge(1,0,v(j,i)),i=1,n_dim)
+!   do j=1,2**(n_dim-1)
+!     write(*,*) (merge(1,0,v(i,j)),i = 1,n_dim)
+!   end do
+
+!   deallocate( v )
+
+! end program main
+
+program main
+  use index_conversion, only : get_face_vertices
+  implicit none
+  integer :: i, j, n_dim, face_num
+  integer, dimension(:),   allocatable :: sz
+  integer, dimension(:,:), allocatable :: v
+  
+  n_dim = 3
+  allocate( sz(n_dim))
+  allocate( v(n_dim,2**(n_dim-1) ) )
+
+  face_num = 3
+  sz = [(i*100,i=1,n_dim)]
+  write(*,*) 'sz =', sz
+
+  v = get_face_vertices(n_dim,face_num,sz)
+
+  do j=1,2**(n_dim-1)
+    write(*,*) (v(i,j),i = 1,n_dim)
   end do
+
+  deallocate( v, sz )
 
 end program main
